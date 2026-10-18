@@ -1,0 +1,142 @@
+name: Nightly regression
+
+on:
+  schedule:
+    - cron: '30 20 * * *' # 02:00 IST
+  workflow_dispatch:
+    inputs:
+      k6_profile:
+        description: k6 profile
+        type: choice
+        options: [smoke, load]
+        default: smoke
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+jobs:
+  web:
+    name: Web regression ${{ matrix.shard }}/3
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-tests
+      - run: npm run bddgen && npx playwright test --project=web --shard=${{ matrix.shard }}/3
+        env:
+          SHARD_INDEX: ${{ matrix.shard }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: allure-web-${{ matrix.shard }}
+          path: allure-results/web
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: blob-${{ matrix.shard }}
+          path: blob-report
+          retention-days: 7
+
+  api:
+    name: API regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-tests
+        with: { install-browsers: 'false' }
+      - run: npm run test:api
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: allure-api, path: allure-results/api, retention-days: 7 }
+
+  load:
+    name: k6 (${{ inputs.k6_profile || 'smoke' }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-tests
+        with: { install-browsers: 'false' }
+      - uses: grafana/setup-k6-action@v1
+      - run: npm run k6:all -- --profile ${{ inputs.k6_profile || 'smoke' }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: allure-k6, path: allure-results/k6, retention-days: 7 }
+
+  report:
+    name: Publish report
+    needs: [web, api, load]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    env:
+      # Job-level so the Slack step's `if` can see it; a step cannot read its own env in `if`.
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-tests
+        with: { install-browsers: 'false' }
+      - uses: actions/download-artifact@v4
+        with: { pattern: allure-web-*, path: allure-results/web, merge-multiple: true }
+      - uses: actions/download-artifact@v4
+        with: { pattern: allure-api, path: allure-results/api, merge-multiple: true }
+      - uses: actions/download-artifact@v4
+        with: { pattern: allure-k6, path: allure-results/k6, merge-multiple: true }
+      - uses: actions/download-artifact@v4
+        with: { pattern: blob-*, path: blob-report, merge-multiple: true }
+
+      # Allure 3 keeps history in one append-only file. Restoring it before generating and saving
+      # it after is what draws the trend charts across nights.
+      - uses: actions/cache/restore@v4
+        with:
+          path: .allure-history/history.jsonl
+          key: allure-history-${{ github.run_id }}
+          restore-keys: allure-history-
+
+      - name: Build reports
+        env:
+          ALLURE_REPORT_NAME: QA Validation Engine · Nightly
+          ALLURE_HISTORY_PATH: .allure-history/history.jsonl
+        run: |
+          mkdir -p .allure-history allure-results/{web,api,k6}
+          npx allure generate allure-results/web allure-results/api allure-results/k6 --clean -o site
+          npx playwright merge-reports --reporter html ./blob-report || true
+          [ -d playwright-report ] && cp -R playwright-report site/playwright
+
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .allure-history/history.jsonl
+          key: allure-history-${{ github.run_id }}
+
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: site }
+      - id: deploy
+        uses: actions/deploy-pages@v4
+
+      - name: Notify Slack
+        if: always() && env.SLACK_WEBHOOK_URL != ''
+        env:
+          STATUS: ${{ needs.web.result == 'success' && needs.api.result == 'success' && needs.load.result == 'success' && 'passed' || 'failed' }}
+        run: |
+          summary=$(node -p "const s=require('./site/awesome/summary.json').stats; \`\${s.passed}/\${s.total} passed\`")
+          curl -sf -X POST -H 'Content-Type: application/json' \
+            -d "{\"text\":\"Nightly regression ${STATUS}: ${summary} — ${{ steps.deploy.outputs.page_url }}\"}" \
+            "$SLACK_WEBHOOK_URL"

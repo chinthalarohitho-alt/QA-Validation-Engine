@@ -1,0 +1,46 @@
+{
+  "name": "qa-validation-engine",
+  "version": "1.0.0",
+  "description": "One-repo test automation framework: Playwright + BDD web UI, API contract tests, k6 load tests and Allure 3 reporting, wired into GitHub Actions.",
+  "private": true,
+  "license": "MIT",
+  "type": "commonjs",
+  "scripts": {
+    "clean": "rm -rf allure-results allure-report test-results playwright-report blob-report k6-results .features-gen",
+    "bddgen": "bddgen",
+    "test": "bddgen && playwright test --project=web",
+    "test:smoke": "bddgen && playwright test --project=web --grep @smoke",
+    "test:regression": "bddgen && playwright test --project=web --grep @regression",
+    "test:headed": "bddgen && playwright test --project=web --headed",
+    "test:api": "bddgen && PW_SKIP_AUTH_SETUP=1 ALLURE_RESULTS_DIR=allure-results/api playwright test --project=api",
+    "test:api:smoke": "bddgen && PW_SKIP_AUTH_SETUP=1 ALLURE_RESULTS_DIR=allure-results/api playwright test --project=api --grep @smoke",
+    "test:api:regression": "bddgen && PW_SKIP_AUTH_SETUP=1 ALLURE_RESULTS_DIR=allure-results/api playwright test --project=api --grep @regression",
+    "test:all": "npm run test && npm run test:api",
+    "k6": "tsx shared/scripts/run-k6.ts",
+    "k6:all": "tsx shared/scripts/run-k6.ts --all",
+    "allure:web": "ALLURE_REPORT_NAME='Web UI' allure generate allure-results/web --clean -o allure-report/web && allure open allure-report/web",
+    "allure:api": "ALLURE_REPORT_NAME='API' allure generate allure-results/api --clean -o allure-report/api && allure open allure-report/api",
+    "allure:k6": "ALLURE_REPORT_NAME='Load (k6)' allure generate allure-results/k6 --clean -o allure-report/k6 && allure open allure-report/k6",
+    "allure:all": "allure generate allure-results/web allure-results/api allure-results/k6 --clean -o allure-report/all && allure open allure-report/all",
+    "typecheck": "tsc --noEmit",
+    "typecheck:k6": "tsc --noEmit -p shared/k6/tsconfig.json",
+    "quality": "npm run typecheck && npm run typecheck:k6 && bddgen",
+    "test:everything": "npm run clean && npm run quality && npm run test:all && npm run k6:all"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/k6": "^2.2.0",
+    "@types/node": "^24.13.4",
+    "ajv": "^8.20.0",
+    "allure": "^3.17.0",
+    "allure-js-commons": "^3.12.1",
+    "allure-playwright": "^3.12.1",
+    "dotenv": "^17.4.2",
+    "playwright-bdd": "^9.2.1",
+    "tsx": "^4.23.13",
+    "typescript": "^6.0.3"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  }
+}

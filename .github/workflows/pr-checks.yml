@@ -1,0 +1,109 @@
+name: PR checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# A newer push supersedes the run in progress instead of queueing behind it.
+concurrency:
+  group: pr-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Typecheck and BDD generation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-tests
+        with: { install-browsers: 'false' }
+      # bddgen fails on any step a feature uses but no definition implements.
+      - run: npm run quality
+
+  api:
+    name: API (smoke + regression)
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-tests
+        with: { install-browsers: 'false' }
+      - run: npm run test:api
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: allure-api, path: allure-results/api, retention-days: 7 }
+
+  web:
+    name: Web smoke ${{ matrix.shard }}/2
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-tests
+      - run: npm run test:smoke -- --shard=${{ matrix.shard }}/2
+        env:
+          # Worker ids restart at 0 in every shard; this keeps generated data unique across them.
+          SHARD_INDEX: ${{ matrix.shard }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: allure-web-${{ matrix.shard }}
+          path: allure-results/web
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: traces-${{ matrix.shard }}
+          path: test-results
+          retention-days: 7
+
+  load:
+    name: k6 smoke
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-tests
+        with: { install-browsers: 'false' }
+      - uses: grafana/setup-k6-action@v1
+      - run: npm run k6:all -- --profile smoke
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: allure-k6, path: allure-results/k6, retention-days: 7 }
+
+  report:
+    name: Allure report
+    needs: [quality, api, web, load]
+    # Build the report even when tests failed — that is when it is needed most.
+    if: always() && needs.quality.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-tests
+        with: { install-browsers: 'false' }
+      # Every shard's results land in one folder per lane — Allure merges by reading them together.
+      - uses: actions/download-artifact@v4
+        with: { pattern: allure-web-*, path: allure-results/web, merge-multiple: true }
+      - uses: actions/download-artifact@v4
+        with: { pattern: allure-api, path: allure-results/api, merge-multiple: true }
+      - uses: actions/download-artifact@v4
+        with: { pattern: allure-k6, path: allure-results/k6, merge-multiple: true }
+      - run: mkdir -p allure-results/{web,api,k6} && npx allure generate allure-results/web allure-results/api allure-results/k6 --clean -o allure-report
+        env:
+          ALLURE_REPORT_NAME: QA Validation Engine · PR ${{ github.event.number || github.sha }}
+      - uses: actions/upload-artifact@v4
+        with: { name: allure-report, path: allure-report, retention-days: 14 }

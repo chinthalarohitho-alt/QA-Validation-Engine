@@ -1,0 +1,12 @@
+node_modules/
+.env
+.auth/
+.features-gen/
+test-results/
+playwright-report/
+blob-report/
+allure-results/
+allure-report/
+k6-results/
+.allure-history/
+.DS_Store
