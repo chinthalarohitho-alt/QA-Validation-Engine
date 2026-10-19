@@ -10,6 +10,11 @@ expecting failure, so:
 A known defect can therefore never outlive its bug unnoticed, and a fixed bug can never quietly
 regress.
 
+**Limitation.** `@fail` accepts *any* failure, not only the documented one. If a pinned scenario
+starts failing for a different reason (the target is down, a locator changed), it stays green.
+The ordinary scenarios covering the same pages catch those cases, so review a `@fail` scenario
+whenever its failure message in the report changes.
+
 | ID | Area | Defect | Pinned by |
 |---|---|---|---|
 | KD-01 | Web · Login | `performance_glitch_user` takes ~5 s to reach the products page (budget: 2 s). | `@web-login-05` |
@@ -39,7 +44,8 @@ Recorded because each one cost a debugging session, and would cost the next pers
 - **Session reuse must follow the cookie's expiry, not the file's age.** SauceDemo's session lives
   ~10 minutes; reusing a "recent" state made every scenario fail at the products page.
 - **Read a list only after the navigation that shows it has finished.** Reading the cart while
-  the products page was still mounted paired names with the wrong prices. Page objects now wait
-  for the destination URL after every navigation.
+  the products page was still mounted paired names with the wrong prices. Waiting for the URL was
+  not enough — the router changes it before the old page unmounts — so page objects now wait for
+  the destination page's own title (`shared/ui/pages/navigation.ts`).
 - **Natural sort order.** The products API sorts titles case-insensitively with numeric
   awareness ("S7" before "S10"); a plain string sort calls a correct server wrong.
