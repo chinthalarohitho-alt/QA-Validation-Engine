@@ -4,9 +4,12 @@ node_modules/
 .features-gen/
 test-results/
 playwright-report/
+temp_auto_push.bat
 blob-report/
 allure-results/
 allure-report/
 k6-results/
 .allure-history/
 .DS_Store
+.gitignore
+branch_structure.json

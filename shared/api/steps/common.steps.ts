@@ -14,10 +14,6 @@ When('I send a {word} request to {string} with the {string} header', async ({ ap
   scenario.record(await api.send(method, path, auth as AuthVariant));
 });
 
-When('I send a {word} request to {string} with body:', async ({ api, scenario }, method: string, path: string, body: string) => {
-  scenario.record(await api.send(method, path, 'authorized', JSON.parse(body)));
-});
-
 Then('the response status should be {int}', async ({ scenario }, status: number) => {
   const { statusCode, text } = scenario.response;
   expect(statusCode, `body: ${text.slice(0, 300)}`).toBe(status);
@@ -31,8 +27,4 @@ Then('the response should match the {string} schema', async ({ scenario }, name:
 
 Then('the response field {string} should be {string}', async ({ scenario }, path: string, expected: string) => {
   expect(String(valueAt(scenario.response.json, path))).toBe(expected);
-});
-
-Then('the response should arrive within {int} ms', async ({ scenario }, budget: number) => {
-  expect(scenario.response.durationMs).toBeLessThanOrEqual(budget);
 });
