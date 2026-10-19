@@ -15,7 +15,6 @@ export interface ApiResponse {
   readonly json: any;
   /** The raw body, kept so a failure can quote what the server actually said. */
   readonly text: string;
-  readonly durationMs: number;
 }
 
 /**
@@ -48,19 +47,17 @@ export class ApiClient {
   async send(method: string, path: string, auth: AuthVariant = 'authorized', body?: unknown): Promise<ApiResponse> {
     if (!AUTH_VARIANTS.includes(auth)) throw new Error(`Unknown auth variant "${auth}". Expected one of: ${AUTH_VARIANTS.join(', ')}.`);
 
-    const started = Date.now();
     const response = await this.context.fetch(path, {
       method: method.toUpperCase(),
       headers: await this.headersFor(auth),
       data: body,
     });
-    const durationMs = Date.now() - started;
     const text = await response.text();
 
     let json: unknown;
     try { json = text ? JSON.parse(text) : undefined; } catch { json = undefined; }
 
-    return { statusCode: response.status(), json, text, durationMs };
+    return { statusCode: response.status(), json, text };
   }
 }
 
