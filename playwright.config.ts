@@ -34,7 +34,7 @@ export default defineConfig({
 
   reporter: [
     ['list'],
-    // ['html', { open: 'never' }],jj
+    ['html', { open: 'never' }],
     // CI shards write blob reports so the merge job can rebuild one HTML report from all of them.
     ...(process.env.CI ? [['blob'] as ['blob']] : []),
     ['allure-playwright', {
