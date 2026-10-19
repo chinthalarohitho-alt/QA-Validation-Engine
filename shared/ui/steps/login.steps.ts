@@ -25,7 +25,8 @@ Then('I should land on the products page', async ({ inventoryPage }) => {
 });
 
 Then('I should land on the products page within {int} ms', async ({ page, inventoryPage }, budget: number) => {
-  // Measured from the click that submitted the form to the products title being visible.
+  // Measured from the end of the sign-in step to the products title being visible. The click
+  // can return before the slow sign-in finishes, so this slightly understates the real delay.
   const started = Date.now();
   await page.waitForURL('**/inventory.html', { timeout: budget + 10_000 });
   await expect(inventoryPage.title).toBeVisible();
@@ -38,6 +39,7 @@ Then('I should see the login error {string}', async ({ loginPage }, message: str
 });
 
 Then('I should still be on the login page', async ({ page, loginPage }) => {
-  await expect(page).toHaveURL(/saucedemo\.com\/?$/);
+  // The path, not the host, so a `TEST_ENV` pointing at another environment still passes.
+  expect(new URL(page.url()).pathname).toBe('/');
   await expect(loginPage.submit).toBeVisible();
 });
