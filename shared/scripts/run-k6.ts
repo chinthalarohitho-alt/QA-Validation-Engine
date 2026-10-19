@@ -82,6 +82,8 @@ function main(): void {
   for (const s of scripts) if (!fs.existsSync(s)) fail(`no such script: ${s}`);
 
   fs.mkdirSync(RESULTS_DIR, { recursive: true });
+  // A full run replaces the previous one; leftover results would show up as retries in Allure.
+  if (all) fs.rmSync(ALLURE_DIR, { recursive: true, force: true });
   // Run every script even after a failure, so one breach does not hide the others.
   const failed = scripts.filter((s) => !runOne(s, profile, passthrough));
   if (failed.length) fail(`thresholds crossed in: ${failed.map((s) => path.basename(s)).join(', ')}`);

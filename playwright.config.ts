@@ -43,7 +43,8 @@ export default defineConfig({
       suiteTitle: true,
       environmentInfo: { ENV: CURRENT_ENV, NODE: process.version },
       categories: [
-        { name: 'Known defects (expected to fail)', messageRegex: '.*Expected to fail, but passed.*', matchedStatuses: ['failed'] },
+        // A `@fail` scenario that passed: its defect is fixed, so its `@fail` tag must go.
+        { name: 'Known defect fixed — remove @fail', messageRegex: '.*Expected to fail, but passed.*', matchedStatuses: ['failed'] },
         { name: 'Assertion failures', messageRegex: '.*expect\\(.*', matchedStatuses: ['failed'] },
         { name: 'Timeouts', messageRegex: '.*(Timeout|timed out).*', matchedStatuses: ['failed', 'broken'] },
       ],
