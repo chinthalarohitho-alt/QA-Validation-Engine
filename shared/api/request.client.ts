@@ -15,7 +15,6 @@ export interface ApiResponse {
   readonly json: any;
   /** The raw body, kept so a failure can quote what the server actually said. */
   readonly text: string;
-  readonly durationMs: number;
 }
 
 /**
@@ -27,36 +26,38 @@ export const AUTH_VARIANTS = ['authorized', 'no-token', 'blank-token', 'malforme
 export type AuthVariant = (typeof AUTH_VARIANTS)[number];
 
 export class ApiClient {
-  constructor(private readonly context: APIRequestContext, private readonly token: string) {}
+  /**
+   * `token` is asked for only by the variants that carry one, so a scenario that never presents
+   * a token never signs in — and a broken sign-in fails the auth feature, not the whole lane.
+   */
+  constructor(private readonly context: APIRequestContext, private readonly token: () => Promise<string>) {}
 
-  private headersFor(auth: AuthVariant): Record<string, string> {
+  private async headersFor(auth: AuthVariant): Promise<Record<string, string>> {
     switch (auth) {
-      case 'authorized': return { Authorization: `Bearer ${this.token}` };
+      case 'authorized': return { Authorization: `Bearer ${await this.token()}` };
       case 'no-token': return {};
       case 'blank-token': return { Authorization: '' };
       case 'malformed-token': return { Authorization: 'Bearer not.a.real.token' };
       // The worker's own token with its signature replaced: the header and payload still parse,
       // so this reaches signature verification, which a malformed string never does.
-      case 'tampered-token': return { Authorization: `Bearer ${this.token.replace(/\.[^.]+$/, '.' + 'A'.repeat(43))}` };
+      case 'tampered-token': return { Authorization: `Bearer ${(await this.token()).replace(/\.[^.]+$/, '.' + 'A'.repeat(43))}` };
     }
   }
 
   async send(method: string, path: string, auth: AuthVariant = 'authorized', body?: unknown): Promise<ApiResponse> {
     if (!AUTH_VARIANTS.includes(auth)) throw new Error(`Unknown auth variant "${auth}". Expected one of: ${AUTH_VARIANTS.join(', ')}.`);
 
-    const started = Date.now();
     const response = await this.context.fetch(path, {
       method: method.toUpperCase(),
-      headers: this.headersFor(auth),
+      headers: await this.headersFor(auth),
       data: body,
     });
-    const durationMs = Date.now() - started;
     const text = await response.text();
 
     let json: unknown;
     try { json = text ? JSON.parse(text) : undefined; } catch { json = undefined; }
 
-    return { statusCode: response.status(), json, text, durationMs };
+    return { statusCode: response.status(), json, text };
   }
 }
 

@@ -46,7 +46,7 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
       await page.locator('[data-test="username"]').fill(username);
       await page.locator('[data-test="password"]').fill(CREDENTIALS.saucePassword);
       await page.locator('[data-test="login-button"]').click();
-      // performance_glitch_user is slow by design; give it room rather than flake.
+      // The demo store can be slow to answer; give it room rather than flake.
       await page.waitForURL('**/inventory.html', { timeout: 30_000 });
 
       fs.mkdirSync(path.dirname(file), { recursive: true });

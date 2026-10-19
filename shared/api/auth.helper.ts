@@ -4,8 +4,8 @@ import { CREDENTIALS } from '../config/env.config';
 /**
  * Mints a bearer token for the configured API account.
  *
- * Called once per worker by the `apiConnection` fixture, not per scenario: a token is minted
- * over the network, and a login regression should fail the auth feature, not every scenario.
+ * Called at most once per worker, by the lazy `apiToken` fixture: a token is minted over the
+ * network, and a login regression should fail the auth feature, not every scenario.
  */
 export async function mintToken(context: APIRequestContext): Promise<string> {
   const response = await context.post('/auth/login', {

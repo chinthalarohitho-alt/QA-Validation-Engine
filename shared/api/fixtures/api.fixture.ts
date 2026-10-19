@@ -21,16 +21,26 @@ export class ApiScenario {
   }
 }
 
-type WorkerFixtures = { apiToken: string };
+type WorkerFixtures = { apiToken: () => Promise<string> };
 type TestFixtures = { api: ApiClient; scenario: ApiScenario };
 
 export const test = base.extend<TestFixtures, WorkerFixtures>({
-  /** One token per worker, minted in a throwaway context — see `api` below for why. */
+  /**
+   * One token per worker, minted on first use in a throwaway context — see `api` below for why.
+   *
+   * Lazy: the sign-in runs only when a scenario first presents a token, so the scenarios that
+   * test sign-in itself, or the route guard without a token, do not depend on it.
+   */
   apiToken: [async ({}, use) => {
-    const context = await request.newContext({ baseURL: current.apiUrl, timeout: 30_000 });
-    const token = await mintToken(context);
-    await context.dispose();
-    await use(token);
+    let minted: Promise<string> | undefined;
+    await use(() => (minted ??= (async () => {
+      const context = await request.newContext({ baseURL: current.apiUrl, timeout: 30_000 });
+      try {
+        return await mintToken(context);
+      } finally {
+        await context.dispose();
+      }
+    })()));
   }, { scope: 'worker' }],
 
   /**
