@@ -1,7 +1,7 @@
 # QA Validation Engine
 
-[![PR checks](https://github.com/OWNER/qa-validation-engine/actions/workflows/pr-checks.yml/badge.svg)](https://github.com/OWNER/qa-validation-engine/actions/workflows/pr-checks.yml)
-[![Nightly regression](https://github.com/OWNER/qa-validation-engine/actions/workflows/nightly.yml/badge.svg)](https://github.com/OWNER/qa-validation-engine/actions/workflows/nightly.yml)
+[![PR checks](https://github.com/chinthalarohitho-alt/QA-Validation-Engine/actions/workflows/pr-checks.yml/badge.svg)](https://github.com/chinthalarohitho-alt/QA-Validation-Engine/actions/workflows/pr-checks.yml)
+[![Nightly regression](https://github.com/chinthalarohitho-alt/QA-Validation-Engine/actions/workflows/nightly.yml/badge.svg)](https://github.com/chinthalarohitho-alt/QA-Validation-Engine/actions/workflows/nightly.yml)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
 ![Playwright](https://img.shields.io/badge/Playwright-BDD-2EAD33?logo=playwright&logoColor=white)
 ![k6](https://img.shields.io/badge/k6-load-7D64FF?logo=k6&logoColor=white)
