@@ -1,3 +1,7 @@
 {
-  "recommendations": ["ms-playwright.playwright", "cucumberopen.cucumber-official"]
+    "recommendations": [
+        "myml.vscode-markdown-plantuml-preview",
+        "esbenp.prettier-vscode",
+        "jebbs.plantuml"
+    ]
 }
