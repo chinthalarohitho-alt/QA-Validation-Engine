@@ -117,8 +117,10 @@ jobs:
         run: |
           mkdir -p .allure-history allure-results/{web,api,k6}
           npx allure generate allure-results/web allure-results/api allure-results/k6 --clean -o site
-          npx playwright merge-reports --reporter html ./blob-report || true
-          [ -d playwright-report ] && cp -R playwright-report site/playwright
+          # The Playwright HTML report is a bonus; its absence must not fail the publish.
+          if npx playwright merge-reports --reporter html ./blob-report && [ -d playwright-report ]; then
+            cp -R playwright-report site/playwright
+          fi
 
       - uses: actions/cache/save@v4
         if: always()
